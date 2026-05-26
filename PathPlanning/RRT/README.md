@@ -27,6 +27,8 @@ RRT（Rapidly-exploring Random Tree）是一种**基于随机采样的运动规�
 |------|------|
 | `rrt.py` | 标准 RRT，是 RRT\* 系列的基类 |
 | `rrt_with_pathsmoothing.py` | RRT + 路径平滑后处理（去除多余中间节点） |
+| `rrt_with_sobol_sampler.py` | **RRT-Sobol**：用 Sobol 低差异序列替换伪随机采样，空间覆盖更均匀 |
+| `sobol/sobol.py` | Sobol 序列生成器（依赖库，供上文调用） |
 
 ---
 
@@ -35,8 +37,9 @@ RRT（Rapidly-exploring Random Tree）是一种**基于随机采样的运动规�
 ### 直接运行演示
 
 ```bash
-python rrt.py                     # 标准 RRT
-python rrt_with_pathsmoothing.py  # RRT + 路径平滑
+python rrt.py                       # 标准 RRT
+python rrt_with_pathsmoothing.py    # RRT + 路径平滑
+python rrt_with_sobol_sampler.py    # RRT-Sobol（Sobol 准随机采样）
 ```
 
 ### 在代码中调用（标准 RRT）
@@ -122,6 +125,95 @@ path = rrt_smooth.planning(animation=False)
 ```
 
 反复迭代直到无法继续合并，路径节点数显著减少。
+
+---
+
+## RRT-Sobol：Sobol 低差异序列采样
+
+### 什么是 Sobol 序列？
+
+标准 RRT 使用**伪随机数**（Python `random` 模块）采样，在有限迭代次数内可能出现局部采样过密、其他区域覆盖不足的情况。
+
+**Sobol 序列**是一种**准随机（Quasi-Random）低差异序列**，通过数学构造保证样本点在空间中**尽可能均匀分布**，从而在相同迭代次数下覆盖更大的搜索空间。
+
+直观对比：
+
+```
+伪随机采样（random）：     Sobol 低差异序列：
+  . .   .                    .   .   .
+     .  . .                  . .   . .
+ .  .    .                   .   .   .
+  .   .  .                   . .   . .
+→ 存在局部聚集和空白区域     → 均匀覆盖整个空间
+```
+
+### 与标准 RRT 的对比
+
+| 对比项 | 标准 RRT | RRT-Sobol |
+|--------|---------|----------|
+| 采样方式 | 伪随机数（`random.uniform`） | Sobol 准随机序列 |
+| 空间覆盖 | 随机，可能存在空白区域 | **均匀**，低差异性保证 |
+| 收敛速度 | 较慢（受随机性影响） | **更快**（更少迭代找到路径） |
+| 重复性 | 每次运行结果不同 | 确定性序列，结果可复现 |
+| 实现复杂度 | 低 | 中（需 Sobol 序列生成器） |
+
+### 在代码中调用
+
+```python
+from rrt_with_sobol_sampler import RRTSobol
+
+obstacle_list = [
+    (5,  5,  1),
+    (3,  6,  2),
+    (3,  8,  2),
+    (3, 10,  2),
+    (7,  5,  2),
+    (9,  5,  2),
+]
+
+rrt_sobol = RRTSobol(
+    start=[0, 0],
+    goal=[6, 10],
+    rand_area=[-2, 15],
+    obstacle_list=obstacle_list,
+    expand_dis=1.0,
+    path_resolution=0.5,
+    goal_sample_rate=5,
+    max_iter=500,
+)
+
+path = rrt_sobol.planning(animation=False)
+
+if path:
+    print(f"找到路径，共 {len(path)} 个路径点")
+```
+
+> `RRTSobol` 的接口与标准 `RRT` 完全一致，可直接替换使用。
+
+### sobol 包说明
+
+`sobol/sobol.py` 实现了 **i4_sobol** 算法（Sobol 序列的经典实现），核心函数：
+
+```python
+from sobol import sobol_quasirand
+
+# 生成 n 维 Sobol 序列的第 k 个样本点
+# dim : 维度（路径规划中为 2，对应 x, y）
+# skip: 跳过前 skip 个样本（避免初始点密度异常）
+points = sobol_quasirand(dim=2, skip=0)
+```
+
+---
+
+## 三种 RRT 变体横向对比
+
+| 维度 | `rrt.py` | `rrt_with_pathsmoothing.py` | `rrt_with_sobol_sampler.py` |
+|------|---------|----------------------------|----------------------------|
+| 采样方式 | 伪随机 | 伪随机 | **Sobol 准随机** |
+| 路径质量 | 锯齿多 | **平滑** | 锯齿（可配合平滑后处理） |
+| 收敛速度 | 基准 | 同基准 | **更快** |
+| 结果可复现 | ❌ | ❌ | ✅ |
+| 推荐使用场景 | 入门学习、快速验证 | 对路径平滑度有要求 | 需要均匀探索或可复现实验 |
 
 ---
 

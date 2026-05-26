@@ -40,9 +40,11 @@ PathPlanning/
 │   ├── Plotting.py              # 可视化工具
 │   └── README.md
 │
-├── RRT/                         # 基础 RRT 及路径平滑版本
+├── RRT/                         # 基础 RRT 及变体
 │   ├── rrt.py                   # 标准 RRT
 │   ├── rrt_with_pathsmoothing.py # RRT + 路径平滑后处理
+│   ├── rrt_with_sobol_sampler.py # RRT-Sobol（Sobol 低差异采样）
+│   ├── sobol/sobol.py            # Sobol 序列生成器
 │   └── README.md
 │
 ├── RRTStar/                     # RRT*（渐进最优）
@@ -79,6 +81,7 @@ PathPlanning/
 |------|------|---------|---------|
 | **RRT** | `RRT/rrt.py` | 随机扩展树，概率完备，不保证最优 | 高维 C-Space 快速验证可行性 |
 | **RRT + 路径平滑** | `RRT/rrt_with_pathsmoothing.py` | RRT 基础上对锯齿路径做平滑后处理 | 对路径质量有一定要求时 |
+| **RRT-Sobol** | `RRT/rrt_with_sobol_sampler.py` | Sobol 准随机序列采样，覆盖更均匀，收敛更快 | 需要均匀探索或可复现实验 |
 | **RRT\*** | `RRTStar/rrt_star.py` | 加入 rewire 步骤，渐进最优 | 需要高质量路径（MoveIt2 默认使用） |
 | **Informed RRT\*** | `InformedRRTStar/informed_rrt_star.py` | 找到初解后在椭圆区域内采样，收敛更快 | 需要快速收敛到最优路径 |
 | **BIT\*** | `BatchInformedRRTStar/batch_informed_rrt_star.py` | 批量采样 + A\* 式搜索，效率最高 | 计算资源充足、追求最优效率 |
